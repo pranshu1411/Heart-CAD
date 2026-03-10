@@ -56,6 +56,13 @@ features = [
 cleveland = cleveland[features + ["target"]]
 indian = indian[features + ["target"]]
 
+# Cap 'chol' at the 99th percentile for each dataset to handle extreme outliers
+cleveland_chol_cap = cleveland['chol'].quantile(0.99)
+cleveland['chol'] = cleveland['chol'].clip(upper=cleveland_chol_cap)
+
+indian_chol_cap = indian['chol'].quantile(0.99)
+indian['chol'] = indian['chol'].clip(upper=indian_chol_cap)
+
 # Save processed datasets
 
 cleveland.to_csv("processed-data/cleveland_processed.csv", index=False)

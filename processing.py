@@ -49,8 +49,8 @@ if "patientid" in indian.columns:
 # Keep only common features
 
 features = [
-    "age","sex","cp","trestbps","chol","fbs",
-    "restecg","thalach","exang","oldpeak","slope","ca"
+    "age","sex","cp","trestbps","chol",
+    "thalach","exang","oldpeak","slope","ca"
 ]
 
 cleveland = cleveland[features + ["target"]]

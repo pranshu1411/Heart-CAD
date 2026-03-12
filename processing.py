@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 # Load Cleveland dataset
 
@@ -56,19 +57,37 @@ features = [
 cleveland = cleveland[features + ["target"]]
 indian = indian[features + ["target"]]
 
-# Cap 'chol' at the 99th percentile for each dataset to handle extreme outliers
-cleveland_chol_cap = cleveland['chol'].quantile(0.99)
-cleveland['chol'] = cleveland['chol'].clip(upper=cleveland_chol_cap)
-
-indian_chol_cap = indian['chol'].quantile(0.99)
-indian['chol'] = indian['chol'].clip(upper=indian_chol_cap)
+# Cap 'chol' at the 99th percentile — using Cleveland (training) stats only
+chol_cap = cleveland['chol'].quantile(0.99)
+cleveland['chol'] = cleveland['chol'].clip(upper=chol_cap)
+indian['chol'] = indian['chol'].clip(upper=chol_cap)
 
 # Save processed datasets
 
 cleveland.to_csv("processed-data/cleveland_processed.csv", index=False)
 indian.to_csv("processed-data/indian_processed.csv", index=False)
 
+# Normalisation (Standard Scaling)
+
+continuous_features = ["age", "trestbps", "chol", "thalach", "oldpeak"]
+
+# Fit scaler on Cleveland (training data) only to avoid data leakage
+scaler = StandardScaler()
+scaler.fit(cleveland[continuous_features])
+
+# Transform each dataset
+cleveland_norm = cleveland.copy()
+indian_norm = indian.copy()
+
+cleveland_norm[continuous_features] = scaler.transform(cleveland[continuous_features])
+indian_norm[continuous_features] = scaler.transform(indian[continuous_features])
+
+# Save normalised datasets
+cleveland_norm.to_csv("processed-data/cleveland_normalised.csv", index=False)
+indian_norm.to_csv("processed-data/indian_normalised.csv", index=False)
 
 print("Processing complete")
 print("Cleveland shape:", cleveland.shape)
 print("Indian shape:", indian.shape)
+print("\nNormalisation complete (StandardScaler on continuous features)")
+print("Normalised files saved: cleveland_normalised.csv, indian_normalised.csv")

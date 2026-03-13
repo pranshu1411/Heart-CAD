@@ -49,20 +49,24 @@ def evaluate_models(X, y, models, cv_folds=10):
         y_pred  = cross_val_predict(model, X, y, cv=skf, method="predict")
         y_proba = cross_val_predict(model, X, y, cv=skf, method="predict_proba")[:, 1]
 
+        cm = confusion_matrix(y, y_pred)
+        tn, fp, fn, tp = cm.ravel()
+
         results[name] = {
-            "Accuracy":  accuracy_score(y, y_pred),
-            "Precision": precision_score(y, y_pred, zero_division=0),
-            "Recall":    recall_score(y, y_pred, zero_division=0),
-            "F1-Score":  f1_score(y, y_pred, zero_division=0),
-            "ROC-AUC":   roc_auc_score(y, y_proba),
-            "Confusion Matrix": confusion_matrix(y, y_pred),
+            "Accuracy":    accuracy_score(y, y_pred),
+            "Precision":   precision_score(y, y_pred, zero_division=0),
+            "Recall":      recall_score(y, y_pred, zero_division=0),
+            "Specificity": tn / (tn + fp) if (tn + fp) > 0 else 0,
+            "F1-Score":    f1_score(y, y_pred, zero_division=0),
+            "ROC-AUC":     roc_auc_score(y, y_proba),
+            "Confusion Matrix": cm,
         }
 
     return results
 
 
 def plot_metric_comparison(results, save_dir):
-    metrics = ["Accuracy", "Precision", "Recall", "F1-Score", "ROC-AUC"]
+    metrics = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
     model_names = list(results.keys())
 
     data = {m: [results[n][m] for n in model_names] for m in metrics}
@@ -99,14 +103,14 @@ def plot_confusion_matrices(results, save_dir):
 
 
 def save_summary_table(results, save_dir):
-    metrics = ["Accuracy", "Precision", "Recall", "F1-Score", "ROC-AUC"]
+    metrics = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
     rows = []
     for name, res in results.items():
         rows.append([name] + [round(res[m], 4) for m in metrics])
 
     df = pd.DataFrame(rows, columns=["Model"] + metrics)
 
-    fig, ax = plt.subplots(figsize=(10, 2.5))
+    fig, ax = plt.subplots(figsize=(12, 2.5))
     ax.axis("off")
     ax.set_title("Model Evaluation Results — Cleveland Dataset (10-Fold Stratified CV)",
                  fontsize=13, fontweight="bold", pad=12)

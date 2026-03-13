@@ -7,7 +7,7 @@ import os
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
-    f1_score, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay
+    f1_score, roc_auc_score, roc_curve, confusion_matrix, ConfusionMatrixDisplay
 )
 
 from sklearn.linear_model import LogisticRegression
@@ -32,7 +32,6 @@ def get_models():
         "KNN":                 KNeighborsClassifier(n_neighbors=5),
         "XGBoost":             XGBClassifier(
                                    n_estimators=100,
-                                   use_label_encoder=False,
                                    eval_metric="logloss",
                                    random_state=42,
                                ),
@@ -60,6 +59,7 @@ def evaluate_models(X, y, models, cv_folds=10):
             "F1-Score":    f1_score(y, y_pred, zero_division=0),
             "ROC-AUC":     roc_auc_score(y, y_proba),
             "Confusion Matrix": cm,
+            "y_proba": y_proba,
         }
 
     return results
@@ -139,6 +139,26 @@ def save_summary_table(results, save_dir):
     plt.close()
 
 
+def plot_roc_curves(results, y_true, save_dir):
+    plt.figure(figsize=(8, 6))
+
+    for name, res in results.items():
+        fpr, tpr, _ = roc_curve(y_true, res["y_proba"])
+        auc_val = res["ROC-AUC"]
+        plt.plot(fpr, tpr, linewidth=2, label=f"{name} (AUC = {auc_val:.4f})")
+
+    plt.plot([0, 1], [0, 1], "k--", linewidth=1, label="Random Classifier")
+    plt.xlim([0, 1])
+    plt.ylim([0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curves — Cleveland Dataset (10-Fold Stratified CV)")
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, "roc_curves_clev.png"), dpi=300)
+    plt.close()
+
+
 def main():
     X, y = load_and_prepare_data()
     models = get_models()
@@ -150,6 +170,7 @@ def main():
     save_summary_table(results, save_dir)
     plot_metric_comparison(results, save_dir)
     plot_confusion_matrices(results, save_dir)
+    plot_roc_curves(results, y, save_dir)
 
     print("results saved to analysis_images/")
 

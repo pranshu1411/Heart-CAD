@@ -18,7 +18,7 @@ from xgboost import XGBClassifier
 
 
 def load_and_prepare_data():
-    cleveland = pd.read_csv("processed-data/cleveland_normalised.csv")
+    cleveland = pd.read_csv("../processed-data/cleveland_normalised.csv")
     X = cleveland.drop("target", axis=1)
     y = cleveland["target"]
     return X, y
@@ -164,7 +164,7 @@ def main():
     models = get_models()
     results = evaluate_models(X, y, models, cv_folds=10)
 
-    save_dir = "analysis_images"
+    save_dir = "../analysis_images"
     os.makedirs(save_dir, exist_ok=True)
 
     save_summary_table(results, save_dir)
@@ -172,7 +172,7 @@ def main():
     plot_confusion_matrices(results, save_dir)
     plot_roc_curves(results, y, save_dir)
 
-    print("results saved to analysis_images/")
+    print("results saved to ../analysis_images/")
 
 
 if __name__ == "__main__":

@@ -5,28 +5,23 @@ import numpy as np
 import os
 
 def main():
-    cleveland_path = "processed-data/cleveland_processed.csv"
-    indian_path = "processed-data/indian_processed.csv"
+    cleveland_path = "../processed-data/cleveland_processed.csv"
+    indian_path = "../processed-data/indian_processed.csv"
 
     if not os.path.exists(cleveland_path) or not os.path.exists(indian_path):
-        print("Data files not found. Please ensure 'processed-data/' directory contains the required CSV files.")
+        print("Data files not found. Please ensure '../processed-data/' directory contains the required CSV files.")
         return
 
     df_cleveland = pd.read_csv(cleveland_path)
     df_indian = pd.read_csv(indian_path)
 
-    # Add a column to identify the dataset
     df_cleveland['Dataset'] = 'Cleveland'
     df_indian['Dataset'] = 'Indian'
 
-    # Combine datasets
     df_combined = pd.concat([df_cleveland, df_indian], ignore_index=True)
 
-    # All columns except 'Dataset'
     features = [col for col in df_combined.columns if col != 'Dataset']
 
-    # Set up matplotlib figure
-    # 11 features -> 3 rows, 4 columns
     n_cols = 4
     n_rows = 3
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 15))
@@ -35,7 +30,6 @@ def main():
     for i, feature in enumerate(features):
         ax = axes[i]
         
-        # We will use KDE plots to analyze distributions
         sns.kdeplot(
             data=df_combined, 
             x=feature, 
@@ -51,15 +45,14 @@ def main():
         ax.set_xlabel(feature)
         ax.set_ylabel("Density")
         
-    # Remove any empty subplots
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
     plt.suptitle("Feature Distributions: Cleveland vs Indian Datasets", fontsize=18, y=1.02)
     plt.tight_layout()
     
-    os.makedirs("analysis_images", exist_ok=True)
-    output_file = "analysis_images/distribution_comparison.png"
+    os.makedirs("../analysis_images", exist_ok=True)
+    output_file = "../analysis_images/distribution_comparison.png"
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"Distribution analysis plot saved successfully as {output_file}")
     plt.close()

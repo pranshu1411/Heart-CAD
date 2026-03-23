@@ -1,7 +1,5 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
@@ -82,24 +80,6 @@ def evaluate_models(X, y, models, cv_folds=10):
     return results
 
 
-def plot_metric_comparison(results, save_dir):
-    metrics = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
-    model_names = list(results.keys())
-
-    data = {m: [results[n][m] for n in model_names] for m in metrics}
-    df = pd.DataFrame(data, index=model_names)
-
-    ax = df.plot(kind="bar", figsize=(12, 6), width=0.75, colormap="Set2", edgecolor="black")
-    ax.set_ylim(0, 1.05)
-    ax.set_ylabel("Score")
-    ax.set_title("Model Performance Comparison — Cleveland Dataset (10-Fold Stratified CV)")
-    ax.legend(loc="lower right")
-    plt.xticks(rotation=15, ha="right")
-    plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "metric_comparison_clev.png"), dpi=300)
-    plt.close()
-
-
 def plot_confusion_matrices(results, save_dir):
     n = len(results)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4))
@@ -116,43 +96,6 @@ def plot_confusion_matrices(results, save_dir):
     plt.suptitle("Confusion Matrices — Cleveland Dataset (10-Fold Stratified CV)", fontsize=14, y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "confusion_matrices_clev.png"), dpi=300, bbox_inches="tight")
-    plt.close()
-
-
-def save_summary_table(results, save_dir):
-    metrics = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
-    rows = []
-    for name, res in results.items():
-        rows.append([name] + [round(res[m], 4) for m in metrics])
-
-    df = pd.DataFrame(rows, columns=["Model"] + metrics)
-
-    fig, ax = plt.subplots(figsize=(12, 2.5))
-    ax.axis("off")
-    ax.set_title("Model Evaluation Results — Cleveland Dataset (10-Fold Stratified CV)",
-                 fontsize=13, fontweight="bold", pad=12)
-
-    table = ax.table(
-        cellText=df.values,
-        colLabels=df.columns,
-        loc="center",
-        cellLoc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.6)
-
-    for col_idx in range(len(df.columns)):
-        cell = table[0, col_idx]
-        cell.set_facecolor("#4472C4")
-        cell.set_text_props(color="white", fontweight="bold")
-
-    for row_idx in range(1, len(df) + 1):
-        colour = "#D9E2F3" if row_idx % 2 == 1 else "#FFFFFF"
-        for col_idx in range(len(df.columns)):
-            table[row_idx, col_idx].set_facecolor(colour)
-
-    plt.savefig(os.path.join(save_dir, "model_results_clev.png"), dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
 
 
@@ -181,15 +124,24 @@ def main():
     models = get_models()
     results = evaluate_models(X, y, models, cv_folds=10)
 
-    save_dir = "../analysis_images/clev-ML"
+    save_dir = "../analysis_images"
     os.makedirs(save_dir, exist_ok=True)
 
-    save_summary_table(results, save_dir)
-    plot_metric_comparison(results, save_dir)
+    # Save individual CSVs for each model
+    csv_dir = "../results"
+    os.makedirs(csv_dir, exist_ok=True)
+    metrics_list = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
+    for name, res in results.items():
+        row = {m: res[m] for m in metrics_list}
+        df_csv = pd.DataFrame([row])
+        clean_name = name.replace(" ", "_").upper()
+        df_csv.to_csv(os.path.join(csv_dir, f"{clean_name}_results.csv"), index=False)
+
     plot_confusion_matrices(results, save_dir)
     plot_roc_curves(results, y, save_dir)
 
-    print("results saved to ../analysis_images/clev-ML/")
+    print("Images saved to ../analysis_images")
+    print("CSV results saved to ../results/")
 
 
 if __name__ == "__main__":

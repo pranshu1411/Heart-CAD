@@ -181,7 +181,7 @@ def main():
     models = get_models()
     results = evaluate_models(X, y, models, cv_folds=10)
 
-    save_dir = "../analysis_images"
+    save_dir = "../analysis_images/clev-ML"
     os.makedirs(save_dir, exist_ok=True)
 
     save_summary_table(results, save_dir)
@@ -189,7 +189,7 @@ def main():
     plot_confusion_matrices(results, save_dir)
     plot_roc_curves(results, y, save_dir)
 
-    print("results saved to ../analysis_images/")
+    print("results saved to ../analysis_images/clev-ML/")
 
 
 if __name__ == "__main__":

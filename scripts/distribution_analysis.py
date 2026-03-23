@@ -51,8 +51,8 @@ def main():
     plt.suptitle("Feature Distributions: Cleveland vs Indian Datasets", fontsize=18, y=1.02)
     plt.tight_layout()
     
-    os.makedirs("../analysis_images", exist_ok=True)
-    output_file = "../analysis_images/distribution_comparison.png"
+    os.makedirs("../analysis_images/general", exist_ok=True)
+    output_file = "../analysis_images/general/distribution_comparison.png"
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"Distribution analysis plot saved successfully as {output_file}")
     plt.close()

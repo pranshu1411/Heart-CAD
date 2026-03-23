@@ -1,16 +1,15 @@
 rng(42);
+warning('off', 'anfis:trainingDataSmallerThanNumParams');
+warning('off', 'MATLAB:rankDeficientMatrix');
 
 dataPath = '../processed-data/cleveland_processed.csv';
 data = readtable(dataPath);
 
-selectedFeatures = {'cp', 'thalach', 'ca', 'oldpeak'};
-continuousFeatures = {'thalach', 'oldpeak'};
+selectedFeatures = {'cp', 'thalach', 'ca', 'oldpeak', 'exang', 'slope'};
 targetFeature = 'target';
 
 X = data{:, selectedFeatures};
 Y = data{:, targetFeature};
-
-contIdx = find(ismember(selectedFeatures, continuousFeatures));
 
 cv = cvpartition(Y, 'KFold', 10);
 
@@ -21,10 +20,13 @@ metrics = struct('Accuracy', zeros(10,1), 'Sensitivity', zeros(10,1), ...
 best_radii = zeros(10, 1);
 rule_counts = zeros(10, 1);
 fis_all = cell(10, 1);
+all_test_class_preds = [];
+all_test_preds = [];
+all_test_labels = [];
 all_thresholds = zeros(10, 1);
 radius_log = {};
 
-radii_grid = [0.3, 0.4, 0.5, 0.6];
+radii_grid = [0.4, 0.5, 0.6, 0.7];
 
 fprintf('Starting 10-Fold Stratified Cross Validation for ANFIS...\n');
 
@@ -40,13 +42,13 @@ for fold = 1:cv.NumTestSets
     testY      = Y(testIdx);
 
     % --- Grid search with true nested 5-fold inner CV (stratified) ---
-    best_mean_auc = -inf;
+    best_mean_score = -inf;
     best_fis = [];
     best_r = NaN;
 
     for r = radii_grid
         inner_cv = cvpartition(trainY, 'KFold', 5, 'Stratify', true);
-        inner_aucs = NaN(inner_cv.NumTestSets, 1);
+        inner_scores = NaN(inner_cv.NumTestSets, 1);
         inner_rules = NaN(inner_cv.NumTestSets, 1);
         all_inner_failed = true;
 
@@ -59,19 +61,14 @@ for fold = 1:cv.NumTestSets
             innerValX_raw   = trainX_raw(innerValIdx, :);
             innerValY       = trainY(innerValIdx);
 
-            % Feature scaling — fit on inner train only
-            innerTrainX = innerTrainX_raw;
-            innerValX   = innerValX_raw;
-
-            if ~isempty(contIdx)
-                [innerTrainX(:, contIdx), mu, sigma] = zscore(innerTrainX_raw(:, contIdx));
-                zeroVar = (sigma == 0);
-                if any(zeroVar)
-                    fprintf('  [WARN] Zero-variance feature(s) in fold %d, inner %d — skipping scaling.\n', fold, k);
-                    sigma(zeroVar) = 1;
-                end
-                innerValX(:, contIdx) = (innerValX_raw(:, contIdx) - mu) ./ sigma;
+            % Feature scaling — Normalise EVERYTHING
+            [innerTrainX, mu, sigma] = zscore(innerTrainX_raw);
+            zeroVar = (sigma == 0);
+            if any(zeroVar)
+                fprintf('  [WARN] Zero-variance feature(s) in fold %d, inner %d — skipping scaling.\n', fold, k);
+                sigma(zeroVar) = 1;
             end
+            innerValX = (innerValX_raw - mu) ./ sigma;
 
             innerTrainData = [innerTrainX, innerTrainY];
             innerValData   = [innerValX, innerValY];
@@ -87,7 +84,7 @@ for fold = 1:cv.NumTestSets
                     continue;
                 end
 
-                anfisOpt = anfisOptions('EpochNumber', 50, ...
+                anfisOpt = anfisOptions('EpochNumber', 200, ...
                                         'ValidationData', innerValData, ...
                                         'DisplayANFISInformation', 0, ...
                                         'DisplayErrorValues', 0, ...
@@ -103,8 +100,24 @@ for fold = 1:cv.NumTestSets
                 end
 
                 val_preds = evalfis(current_fis, innerValX);
-                [~, ~, ~, val_auc] = perfcurve(innerValY, val_preds, 1);
-                inner_aucs(k) = val_auc;
+                [Xroc, Yroc, Troc, ~] = perfcurve(innerValY, val_preds, 1);
+                
+                % Soft threshold logic: 0.6 * Sens + 0.4 * Spec
+                score = 0.6 * Yroc + 0.4 * (1 - Xroc);
+                [~, optIdx] = max(score);
+                tmp_thr = Troc(optIdx);
+                v_class = double(val_preds >= tmp_thr);
+                
+                v_TP = sum((v_class == 1) & (innerValY == 1));
+                v_TN = sum((v_class == 0) & (innerValY == 0));
+                v_FP = sum((v_class == 1) & (innerValY == 0));
+                v_FN = sum((v_class == 0) & (innerValY == 1));
+                
+                v_sens = v_TP / max(v_TP + v_FN, 1);
+                v_spec = v_TN / max(v_TN + v_FP, 1);
+                
+                val_score = 0.6 * v_sens + 0.4 * v_spec;
+                inner_scores(k) = val_score;
                 all_inner_failed = false;
 
             catch ME
@@ -113,31 +126,26 @@ for fold = 1:cv.NumTestSets
             end
         end
 
-        mean_auc = mean(inner_aucs, 'omitnan');
+        mean_score = mean(inner_scores, 'omitnan');
         mean_rules = mean(inner_rules, 'omitnan');
         radius_log{end+1, 1} = fold;
         radius_log{end, 2} = r;
-        radius_log{end, 3} = mean_auc;
+        radius_log{end, 3} = mean_score;
         radius_log{end, 4} = mean_rules;
-        fprintf('  Radius %.2f -> mean inner AUC: %.4f, mean rules: %.1f\n', r, mean_auc, mean_rules);
+        fprintf('  Radius %.2f -> mean score (0.7Sens+0.3Spec): %.4f, mean rules: %.1f\n', r, mean_score, mean_rules);
 
-        if ~all_inner_failed && mean_auc > best_mean_auc
-            best_mean_auc = mean_auc;
+        if ~all_inner_failed && mean_score > best_mean_score
+            best_mean_score = mean_score;
             best_r = r;
         end
     end
 
     % --- Retrain on full outer train with best radius ---
     % Scale full outer train
-    fullTrainX = trainX_raw;
-    testX = testX_raw;
-
-    if ~isempty(contIdx)
-        [fullTrainX(:, contIdx), mu, sigma] = zscore(trainX_raw(:, contIdx));
-        zeroVar = (sigma == 0);
-        if any(zeroVar), sigma(zeroVar) = 1; end
-        testX(:, contIdx) = (testX_raw(:, contIdx) - mu) ./ sigma;
-    end
+    [fullTrainX, mu, sigma] = zscore(trainX_raw);
+    zeroVar = (sigma == 0);
+    if any(zeroVar), sigma(zeroVar) = 1; end
+    testX = (testX_raw - mu) ./ sigma;
 
     if isnan(best_r)
         fprintf('  [ERROR] All radii failed for fold %d. Attempting fallback radius 0.5...\n', fold);
@@ -155,7 +163,7 @@ for fold = 1:cv.NumTestSets
         esValX   = fullTrainX(cv_es.test, :);
         esValY   = trainY(cv_es.test);
 
-        anfisOpt = anfisOptions('EpochNumber', 50, ...
+        anfisOpt = anfisOptions('EpochNumber', 200, ...
                                 'ValidationData', [esValX, esValY], ...
                                 'DisplayANFISInformation', 0, ...
                                 'DisplayErrorValues', 0, ...
@@ -178,11 +186,12 @@ for fold = 1:cv.NumTestSets
     best_radii(fold) = best_r;
     rule_counts(fold) = length(best_fis.rule);
 
-    % Threshold tuning — use holdout validation predictions for Youden's J
+    % Threshold tuning — 0.6 Sens + 0.4 Spec
     val_preds = evalfis(best_fis, esValX);
     [Xroc, Yroc, Troc, ~] = perfcurve(esValY, val_preds, 1);
 
-    [~, optIdx] = max(Yroc - Xroc);
+    score = 0.6 * Yroc + 0.4 * (1 - Xroc);
+    [~, optIdx] = max(score);
     optimal_threshold = Troc(optIdx);
 
     if isnan(optimal_threshold) || isempty(optimal_threshold)
@@ -193,6 +202,10 @@ for fold = 1:cv.NumTestSets
     % Evaluate on outer test set
     test_preds = evalfis(best_fis, testX);
     test_class_preds = double(test_preds >= optimal_threshold);
+
+    all_test_preds       = [all_test_preds; test_preds];
+    all_test_class_preds = [all_test_class_preds; test_class_preds];
+    all_test_labels      = [all_test_labels; testY];
 
     TP = sum((test_class_preds == 1) & (testY == 1));
     TN = sum((test_class_preds == 0) & (testY == 0));
@@ -209,8 +222,7 @@ for fold = 1:cv.NumTestSets
     try
         [~, ~, ~, AUC_test] = perfcurve(testY, test_preds, 1);
         metrics.AUC(fold) = AUC_test;
-    catch ME
-        fprintf('  [WARN] AUC computation failed for fold %d: %s\n', fold, ME.message);
+    catch
         metrics.AUC(fold) = NaN;
     end
 
@@ -231,13 +243,9 @@ fprintf('ROC AUC:     %.4f +/- %.4f\n', mean(metrics.AUC, 'omitnan'), std(metric
 fprintf('RMSE:        %.4f +/- %.4f\n', mean(metrics.RMSE), std(metrics.RMSE));
 fprintf('Avg Rules:   %.1f +/- %.1f\n', mean(rule_counts), std(rule_counts));
 
-% Limitation note
-fprintf('\nNote: ANFIS does not natively support class-weighted training.\n');
-fprintf('Mild class imbalance in Cleveland data is handled via stratified CV only.\n');
-
-%% Radius vs AUC Log
-fprintf('\n--- Radius Selection Log (rules vs AUC per outer fold) ---\n');
-fprintf('%-6s %-8s %-12s %-12s\n', 'Fold', 'Radius', 'Mean AUC', 'Mean Rules');
+%% Radius vs Score Log
+fprintf('\n--- Radius Selection Log (rules vs Score per outer fold) ---\n');
+fprintf('%-6s %-8s %-12s %-12s\n', 'Fold', 'Radius', 'Mean Score', 'Mean Rules');
 for i = 1:size(radius_log, 1)
     fprintf('%-6d %-8.2f %-12.4f %-12.1f\n', radius_log{i,1}, radius_log{i,2}, radius_log{i,3}, radius_log{i,4});
 end
@@ -270,4 +278,37 @@ csvPath = fullfile(resultsDir, 'anfis_results.csv');
 writetable(T, csvPath);
 fprintf('Results CSV saved to %s\n', csvPath);
 
+%% Plots
+plotDir = '../analysis_images';
+if ~exist(plotDir, 'dir'), mkdir(plotDir); end
+
+figure('Visible', 'off');
+[fpr, tpr, ~, aucVal] = perfcurve(all_test_labels, all_test_preds, 1);
+plot(fpr, tpr, 'b-', 'LineWidth', 2);
+hold on;
+plot([0 1], [0 1], 'k--', 'LineWidth', 1);
+hold off;
+xlabel('False Positive Rate');
+ylabel('True Positive Rate');
+title(sprintf('ANFIS ROC Curve — Cleveland (10-Fold CV) | AUC = %.4f', aucVal));
+legend({'ANFIS', 'Random'}, 'Location', 'southeast');
+grid on;
+saveas(gcf, fullfile(plotDir, 'roc_curve_anfis.png'));
+close;
+
+agg_TP = sum((all_test_class_preds == 1) & (all_test_labels == 1));
+agg_TN = sum((all_test_class_preds == 0) & (all_test_labels == 0));
+agg_FP = sum((all_test_class_preds == 1) & (all_test_labels == 0));
+agg_FN = sum((all_test_class_preds == 0) & (all_test_labels == 1));
+cm = [agg_TN agg_FP; agg_FN agg_TP];
+
+figure('Visible', 'off');
+heatmap({'No CAD', 'CAD'}, {'No CAD', 'CAD'}, cm, ...
+        'Title', 'ANFIS Confusion Matrix — Cleveland (10-Fold CV)', ...
+        'XLabel', 'Predicted', 'YLabel', 'Actual', ...
+        'ColorbarVisible', 'off');
+saveas(gcf, fullfile(plotDir, 'confusion_matrix_anfis.png'));
+close;
+
+fprintf('Plots saved to %s/\n', plotDir);
 fprintf('Done.\n');

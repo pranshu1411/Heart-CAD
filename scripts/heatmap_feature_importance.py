@@ -41,8 +41,8 @@ def main():
     sns.heatmap(corr_matrix, annot=True, cmap='RdBu_r', fmt=".2f", linewidths=0.5, vmin=-1, vmax=1)
     plt.title('Correlation Heatmap\n(Cleveland Trained Data - Standardized via Indian Data)')
     plt.tight_layout()
-    os.makedirs("../analysis_images/general", exist_ok=True)
-    heatmap_file = '../analysis_images/general/correlation_heatmap.png'
+    os.makedirs("../analysis_images", exist_ok=True)
+    heatmap_file = '../analysis_images/correlation_heatmap.png'
     plt.savefig(heatmap_file, dpi=300)
     print(f"Saved correlation heatmap: {heatmap_file}")
     plt.close()
@@ -65,7 +65,7 @@ def main():
     plt.xlabel('Relative Importance')
     plt.ylabel('Features')
     plt.tight_layout()
-    importance_file = '../analysis_images/general/feature_importance.png'
+    importance_file = '../analysis_images/feature_importance.png'
     plt.savefig(importance_file, dpi=300)
     print(f"Saved feature importance plot: {importance_file}")
     plt.close()

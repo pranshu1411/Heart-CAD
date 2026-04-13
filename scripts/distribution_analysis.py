@@ -7,18 +7,21 @@ import os
 def main():
     cleveland_path = "../processed-data/cleveland_processed.csv"
     indian_path = "../processed-data/indian_processed.csv"
+    statlog_path = "../processed-data/statlog_processed.csv"
 
-    if not os.path.exists(cleveland_path) or not os.path.exists(indian_path):
+    if not os.path.exists(cleveland_path) or not os.path.exists(indian_path) or not os.path.exists(statlog_path):
         print("Data files not found. Please ensure '../processed-data/' directory contains the required CSV files.")
         return
 
     df_cleveland = pd.read_csv(cleveland_path)
     df_indian = pd.read_csv(indian_path)
+    df_statlog = pd.read_csv(statlog_path)
 
     df_cleveland['Dataset'] = 'Cleveland'
     df_indian['Dataset'] = 'Indian'
+    df_statlog['Dataset'] = 'Statlog'
 
-    df_combined = pd.concat([df_cleveland, df_indian], ignore_index=True)
+    df_combined = pd.concat([df_cleveland, df_indian, df_statlog], ignore_index=True)
 
     features = [col for col in df_combined.columns if col != 'Dataset']
 
@@ -48,11 +51,11 @@ def main():
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
-    plt.suptitle("Feature Distributions: Cleveland vs Indian Datasets", fontsize=18, y=1.02)
+    plt.suptitle("Feature Distributions: Cleveland vs Indian vs Statlog Datasets", fontsize=18, y=1.02)
     plt.tight_layout()
     
-    os.makedirs("../analysis_images/", exist_ok=True)
-    output_file = "../analysis_images/distribution_comparison.png"
+    os.makedirs("../analysis_images/baseline_v1/", exist_ok=True)
+    output_file = "../analysis_images/baseline_v1/distribution_comparison.png"
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"Distribution analysis plot saved successfully as {output_file}")
     plt.close()

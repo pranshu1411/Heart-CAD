@@ -79,7 +79,33 @@ Key packages:
 - matplotlib
 - statsmodels
 
-### Environment Setup
+### Quick Start
+
+1. **Install dependencies**:
+```bash
+pip install -r requirements.txt
+```
+
+2. **Preprocess data**:
+```bash
+cd scripts
+python processing.py
+```
+
+3. **Train baseline models**:
+```bash
+python model_training.py
+```
+
+4. **Generate visualizations**:
+```bash
+python heatmap_feature_importance.py
+python distribution_analysis.py
+```
+
+Results will be saved to `../results/` and visualizations to `../analysis_images/`
+
+### Full Environment Setup
 
 1. Clone the repository:
 ```bash
@@ -95,7 +121,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 3. Install dependencies:
 ```bash
-pip install pandas scikit-learn xgboost matplotlib statsmodels
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -209,20 +235,22 @@ Results are organized in `results/` directory:
 
 The models use the following cardiovascular disease indicators:
 
-| Feature | Description |
-|---------|-------------|
-| age | Patient age in years |
-| sex | Gender (0=female, 1=male) |
-| cp | Chest pain type (0-3) |
-| trestbps | Resting blood pressure (mmHg) |
-| chol | Serum cholesterol (mg/dl) |
-| fbs | Fasting blood sugar > 120 mg/dl (0=no, 1=yes) |
-| restecg | Resting electrocardiographic results (0-2) |
-| thalach | Maximum heart rate achieved (bpm) |
-| exang | Exercise induced angina (0=no, 1=yes) |
-| oldpeak | ST depression induced by exercise |
-| slope | Slope of ST segment (0-2) |
-| ca | Number of major vessels (0-4) |
+| Feature | Description | Range/Values |
+|---------|-------------|---|
+| age | Patient age in years | 29-77 |
+| sex | Gender | 0=female, 1=male |
+| cp | Chest pain type | 0=typical angina, 1=atypical angina, 2=non-anginal pain, 3=asymptomatic |
+| trestbps | Resting blood pressure (mmHg) | 94-200 |
+| chol | Serum cholesterol (mg/dl) | 126-564 |
+| fbs | Fasting blood sugar > 120 mg/dl | 0=no, 1=yes |
+| restecg | Resting electrocardiographic results | 0=normal, 1=ST-T abnormality, 2=LV hypertrophy |
+| thalach | Maximum heart rate achieved (bpm) | 60-202 |
+| exang | Exercise induced angina | 0=no, 1=yes |
+| oldpeak | ST depression induced by exercise | 0-6.2 |
+| slope | Slope of the ST segment | 0=upsloping, 1=flat, 2=downsloping |
+| ca | Number of major vessels (0-4) colored by fluoroscopy | 0-4 |
+| thal | Thalassemia status | 0=normal, 1=fixed defect, 2=reversible defect |
+| **target** | **Cardiovascular disease presence** | **0=absent, 1=present** |
 
 ## Citation
 
@@ -235,18 +263,6 @@ If you use this work in your research, please cite:
   year={2026}
 }
 ```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request or open an Issue for bugs and feature suggestions.
-
-## Contact
-
-For questions or inquiries, please reach out through the project repository.
 
 ## Acknowledgments
 

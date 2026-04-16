@@ -62,6 +62,12 @@ def evaluate_models(X, y, models, cv_folds=10):
 
         y_pred  = cross_val_predict(model, X, y, cv=skf, method="predict")
         y_proba = cross_val_predict(model, X, y, cv=skf, method="predict_proba")[:, 1]
+        
+        # Save exact predictions for Statistical checking
+        pd.DataFrame({
+            "True_Label": y,
+            "Pred_Label": y_pred
+        }).to_csv(f"../results/baseline_v1/{name}_predictions.csv", index_label="Row_ID")
 
         cm = confusion_matrix(y, y_pred)
         tn, fp, fn, tp = cm.ravel()
@@ -80,7 +86,49 @@ def evaluate_models(X, y, models, cv_folds=10):
     return results
 
 
-def plot_confusion_matrices(results, save_dir):
+def main():
+    X_all, y = load_and_prepare_data()
+    
+    # Define feature sets
+    fa_features = ["age", "sex", "thalach", "ca"]
+    
+    # Make sure we only grab features that exist (to avoid KeyError if the list differs)
+    X_opt = X_all[fa_features] if all(f in X_all.columns for f in fa_features) else X_all
+    
+    feature_configs = {
+        "ALL": X_all,
+        "OPT": X_opt
+    }
+    
+    models = get_models()
+    
+    save_dir = "../analysis_images/baseline_v1"
+    csv_dir = "../results/baseline_v1"
+    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(csv_dir, exist_ok=True)
+
+    metrics_list = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
+
+    for config_name, X_current in feature_configs.items():
+        print(f"\n--- Running evaluations for feature set: {config_name} ({X_current.shape[1]} features) ---")
+        results = evaluate_models(X_current, y, models, cv_folds=10)
+
+        # Save individual CSVs for each model
+        for name, res in results.items():
+            row = {m: res[m] for m in metrics_list}
+            df_csv = pd.DataFrame([row])
+            clean_name = name.replace(" ", "_").upper()
+            csv_path = os.path.join(csv_dir, f"{clean_name}_{config_name}_results.csv")
+            df_csv.to_csv(csv_path, index=False)
+            print(f"Saved {csv_path}")
+
+        plot_confusion_matrices_custom(results, save_dir, config_name)
+        plot_roc_curves_custom(results, y, save_dir, config_name)
+
+    print("\nImages saved to ../analysis_images/baseline_v1")
+    print("CSV results saved to ../results/baseline_v1/")
+
+def plot_confusion_matrices_custom(results, save_dir, config_name):
     n = len(results)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4))
     if n == 1:
@@ -93,13 +141,12 @@ def plot_confusion_matrices(results, save_dir):
         ).plot(ax=ax, cmap="Blues", colorbar=False)
         ax.set_title(name)
 
-    plt.suptitle("Confusion Matrices — Cleveland Dataset (10-Fold Stratified CV)", fontsize=14, y=1.02)
+    plt.suptitle(f"Confusion Matrices — Cleveland ({config_name} Features, 10-Fold CV)", fontsize=14, y=1.02)
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "confusion_matrices_clev.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(save_dir, f"confusion_matrices_clev_{config_name}.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
-
-def plot_roc_curves(results, y_true, save_dir):
+def plot_roc_curves_custom(results, y_true, save_dir, config_name):
     plt.figure(figsize=(8, 6))
 
     for name, res in results.items():
@@ -112,37 +159,11 @@ def plot_roc_curves(results, y_true, save_dir):
     plt.ylim([0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("ROC Curves — Cleveland Dataset (10-Fold Stratified CV)")
+    plt.title(f"ROC Curves — Cleveland ({config_name} Features, 10-Fold CV)")
     plt.legend(loc="lower right")
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "roc_curves_clev.png"), dpi=300)
+    plt.savefig(os.path.join(save_dir, f"roc_curves_clev_{config_name}.png"), dpi=300)
     plt.close()
-
-
-def main():
-    X, y = load_and_prepare_data()
-    models = get_models()
-    results = evaluate_models(X, y, models, cv_folds=10)
-
-    save_dir = "../analysis_images"
-    os.makedirs(save_dir, exist_ok=True)
-
-    # Save individual CSVs for each model
-    csv_dir = "../results"
-    os.makedirs(csv_dir, exist_ok=True)
-    metrics_list = ["Accuracy", "Precision", "Recall", "Specificity", "F1-Score", "ROC-AUC"]
-    for name, res in results.items():
-        row = {m: res[m] for m in metrics_list}
-        df_csv = pd.DataFrame([row])
-        clean_name = name.replace(" ", "_").upper()
-        df_csv.to_csv(os.path.join(csv_dir, f"{clean_name}_results.csv"), index=False)
-
-    plot_confusion_matrices(results, save_dir)
-    plot_roc_curves(results, y, save_dir)
-
-    print("Images saved to ../analysis_images")
-    print("CSV results saved to ../results/")
-
 
 if __name__ == "__main__":
     main()

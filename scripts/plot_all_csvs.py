@@ -5,7 +5,7 @@ import os
 import glob
 
 def plot_all_csvs():
-    results_dir = '../results'
+    results_dir = '../results/baseline_v1'
     save_dir = '../analysis_images/comparison'
     
     if not os.path.exists(results_dir):
@@ -14,7 +14,7 @@ def plot_all_csvs():
         
     os.makedirs(save_dir, exist_ok=True)
     
-    csv_files = glob.glob(os.path.join(results_dir, '*.csv'))
+    csv_files = [f for f in glob.glob(os.path.join(results_dir, '*.csv')) if 'predictions' not in f.lower()]
     
     if not csv_files:
         print(f"No CSV files found in '{results_dir}'.")
@@ -31,13 +31,10 @@ def plot_all_csvs():
         model_name = os.path.basename(file).replace('_results.csv', '').replace('.csv', '').upper()
         df = pd.read_csv(file)
         
-        # If there's an aggregated mean row (e.g. Fold == 0, 'Mean', 'Average'), drop it
-        # so we can calculate a clean mean and std purely from the k-fold rows.
         if 'Fold' in df.columns:
             df['Fold_str'] = df['Fold'].astype(str)
             df = df[~df['Fold_str'].isin(['0', '0.0', 'Mean', 'mean', 'Average', 'average'])]
         
-        # Map exact columns to standard metric names
         col_map = {
             'Accuracy': 'Accuracy',
             'Sensitivity': 'Sensitivity', 'Recall': 'Sensitivity', # treat Recall as Sensitivity
@@ -133,6 +130,7 @@ def plot_all_csvs():
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1, 1.8)
+    table.auto_set_column_width(col=list(range(len(table_df.columns))))
 
     for col_idx in range(len(table_df.columns)):
         cell = table[0, col_idx]

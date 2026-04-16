@@ -92,7 +92,6 @@ def main():
     # Define feature sets
     fa_features = ["age", "sex", "thalach", "ca"]
     
-    # Make sure we only grab features that exist (to avoid KeyError if the list differs)
     X_opt = X_all[fa_features] if all(f in X_all.columns for f in fa_features) else X_all
     
     feature_configs = {
@@ -141,7 +140,7 @@ def plot_confusion_matrices_custom(results, save_dir, config_name):
         ).plot(ax=ax, cmap="Blues", colorbar=False)
         ax.set_title(name)
 
-    plt.suptitle(f"Confusion Matrices — Cleveland ({config_name} Features, 10-Fold CV)", fontsize=14, y=1.02)
+    plt.suptitle(f"Confusion Matrices - Cleveland ({config_name} Features, 10-Fold CV)", fontsize=14, y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, f"confusion_matrices_clev_{config_name}.png"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -159,7 +158,7 @@ def plot_roc_curves_custom(results, y_true, save_dir, config_name):
     plt.ylim([0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title(f"ROC Curves — Cleveland ({config_name} Features, 10-Fold CV)")
+    plt.title(f"ROC Curves - Cleveland ({config_name} Features, 10-Fold CV)")
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, f"roc_curves_clev_{config_name}.png"), dpi=300)

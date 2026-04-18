@@ -14,9 +14,21 @@ function plot_mfs()
     end
     
     for i = 1:num_inputs
-        fig = figure('Visible', 'off');
+        fig = figure('Visible', 'off', 'Color', 'white');
         plotmf(finalPrunedFIS_Cleve, 'input', i);
         title(sprintf('Membership Functions for %s', feat_names{i}));
+
+        % Force white background and black axes/text for print publication
+        ax = gca;
+        ax.Color       = 'white';
+        ax.XColor      = 'black';
+        ax.YColor      = 'black';
+        ax.GridColor   = [0.15 0.15 0.15];
+        ax.TitleFontWeight = 'bold';
+        set(ax.Title,  'Color', 'black');
+        set(ax.XLabel, 'Color', 'black');
+        set(ax.YLabel, 'Color', 'black');
+
         saveas(fig, sprintf('../analysis_images/anfis_mfs/mf_%s.png', feat_names{i}));
         close(fig);
     end
